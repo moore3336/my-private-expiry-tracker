@@ -22,7 +22,7 @@ const submit=accountForm.querySelector('button');submit.disabled=true;submit.tex
 try{
 const response=await fetch('/api/'+mode,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
 const result=await response.json().catch(()=>({}));
-if(response.ok){location.href='/app';return;}
+if(response.ok){location.href=mode==='register'?'/welcome':'/app';return;}
 message.textContent=result.error||(response.status===429?'Слишком много попыток. Подождите немного и попробуйте снова.':'Не удалось выполнить запрос. Проверьте данные.');
 }catch(error){message.textContent='Не удалось связаться с сервером. Проверьте интернет и попробуйте ещё раз.';}
 finally{submit.disabled=false;submit.textContent=mode==='register'?'Создать аккаунт':'Войти';}
