@@ -1,19 +1,23 @@
 {
-  "name": "private-expiry-tracker",
-  "version": "1.0.0",
+  "name": "expiry-tracker",
+  "version": "2.0.0",
   "private": true,
-  "description": "Single-user password-protected expiry tracker",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "make-password-hash": "node scripts/make-password-hash.js"
+    "start": "node server.js"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "cookie-session": "^2.1.0",
+    "connect-pg-simple": "^10.0.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.1.0",
-    "helmet": "^8.1.0"
+    "express-session": "^1.18.2",
+    "helmet": "^8.1.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.16.3"
   }
 }
