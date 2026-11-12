@@ -1,101 +1,25 @@
-const express = require('express');
-const cookieSession = require('cookie-session');
-const bcrypt = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
-const path = require('path');
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-const isProduction = process.env.NODE_ENV === 'production';
-
-if (!process.env.PASSWORD_HASH || !process.env.SESSION_KEYS) {
-  console.error('Set PASSWORD_HASH and SESSION_KEYS environment variables before starting.');
-  process.exit(1);
-}
-
-if (isProduction) app.set('trust proxy', 1);
-
-app.disable('x-powered-by');
-app.use(helmet({ contentSecurityPolicy: false }));
-app.use(express.urlencoded({ extended: false, limit: '10kb' }));
-
-app.use(cookieSession({
-  name: 'expiry_private_session',
-  keys: process.env.SESSION_KEYS.split(','),
-  maxAge: 8 * 60 * 60 * 1000,
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: 'strict',
-  path: '/'
-}));
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 8,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: 'Слишком много попыток входа. Попробуйте через 15 минут.'
-});
-
-function requireAuth(req, res, next) {
-  if (req.session && req.session.authenticated === true) return next();
-  return res.redirect('/login');
-}
-
-function loginPage(error = '') {
-  return `<!doctype html>
-  <html lang="ru"><head><meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>Вход — Сроки годности</title>
-  <style>
-  *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1220;color:#e5edf8;font:16px system-ui,sans-serif;padding:20px}
-  main{width:min(100%,390px);background:#131d2e;border:1px solid #29384e;border-radius:18px;padding:28px}
-  h1{font-size:23px;margin:0 0 8px}p{color:#9aabc2;font-size:14px;line-height:1.5}
-  label{display:block;margin:20px 0 7px;font-size:14px}input{width:100%;padding:13px;border-radius:10px;border:1px solid #40516b;background:#182438;color:#fff;font:inherit}
-  button{width:100%;margin-top:16px;padding:13px;border:0;border-radius:10px;background:#60a5fa;color:#081426;font-weight:700;font:inherit;cursor:pointer}
-  .error{color:#fca5a5;background:#351e28;padding:10px;border-radius:9px}
-  </style></head><body><main><h1>🔒 Сроки годности</h1>
-  <p>Это личное приложение. Введите пароль, чтобы продолжить.</p>
-  ${error ? `<p class="error">${error}</p>` : ''}
-  <form method="post" action="/login">
-  <label for="password">Пароль</label>
-  <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
-  <button type="submit">Войти</button></form></main></body></html>`;
-}
-
-app.get('/', (req, res) => res.redirect(req.session?.authenticated ? '/app' : '/login'));
-app.get('/login', (req, res) => {
-  if (req.session?.authenticated) return res.redirect('/app');
-  res.set('Cache-Control', 'no-store');
-  res.type('html').send(loginPage());
-});
-
-app.post('/login', loginLimiter, async (req, res) => {
-  const password = typeof req.body.password === 'string' ? req.body.password : '';
-  const ok = await bcrypt.compare(password, process.env.PASSWORD_HASH);
-  if (!ok) {
-    res.status(401).set('Cache-Control', 'no-store').type('html').send(loginPage('Неверный пароль.'));
-    return;
-  }
-  req.session = { authenticated: true, createdAt: Date.now() };
-  res.redirect(303, '/app');
-});
-
-app.get('/app', requireAuth, (req, res) => {
-  res.set({
-    'Cache-Control': 'no-store, private',
-    'X-Robots-Tag': 'noindex, nofollow'
-  });
-  res.sendFile(path.join(__dirname, 'private', 'app.html'));
-});
-
-app.post('/logout', requireAuth, (req, res) => {
-  req.session = null;
-  res.redirect(303, '/login');
-});
-
-app.use((req, res) => res.status(404).send('Страница не найдена.'));
-
-app.listen(PORT, () => console.log(`Private expiry tracker listening on port ${PORT}`));
+const express=require('express'),{Pool}=require('pg'),bcrypt=require('bcryptjs'),session=require('express-session'),PgStore=require('connect-pg-simple')(session),rateLimit=require('express-rate-limit'),helmet=require('helmet'),passport=require('passport'),Google=require('passport-google-oauth20').Strategy,path=require('path'),crypto=require('crypto');
+const app=express(),pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}}),PORT=process.env.PORT||3000;
+if(!process.env.DATABASE_URL||!process.env.SESSION_SECRET)throw Error('DATABASE_URL and SESSION_SECRET required');
+if(process.env.NODE_ENV==='production')app.set('trust proxy',1);
+app.disable('x-powered-by');app.use(helmet({contentSecurityPolicy:false}));app.use(express.json({limit:'32kb'}));app.use(express.urlencoded({extended:false}));
+app.use(session({store:new PgStore({pool,tableName:'user_sessions',createTableIfMissing:true}),secret:process.env.SESSION_SECRET,resave:false,saveUninitialized:false,cookie:{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:12096e5}}));
+app.use(passport.initialize());app.use(passport.session());const limit=rateLimit({windowMs:9e5,limit:10});
+const run=f=>(q,s,n)=>Promise.resolve(f(q,s,n)).catch(n);
+async function init(){await pool.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");await pool.query("CREATE TABLE IF NOT EXISTS users(id BIGSERIAL PRIMARY KEY,username TEXT UNIQUE NOT NULL,email TEXT UNIQUE,password_hash TEXT,google_id TEXT UNIQUE,is_admin BOOLEAN DEFAULT FALSE,is_developer BOOLEAN DEFAULT FALSE,created_at TIMESTAMPTZ DEFAULT NOW())");await pool.query("CREATE TABLE IF NOT EXISTS products(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL,exp_date DATE NOT NULL,category TEXT DEFAULT '')")}
+passport.serializeUser((u,d)=>d(null,u.id));passport.deserializeUser((id,d)=>pool.query('SELECT id,username,email,is_admin,is_developer FROM users WHERE id=$1',[id]).then(x=>d(null,x.rows[0]||false)).catch(d));
+if(process.env.GOOGLE_CLIENT_ID&&process.env.GOOGLE_CLIENT_SECRET&&process.env.GOOGLE_CALLBACK_URL)passport.use(new Google({clientID:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,callbackURL:process.env.GOOGLE_CALLBACK_URL},async(a,r,p,d)=>{try{const e=(p.emails||[])[0]?.value?.toLowerCase();if(!e||!(p._json?.email_verified===true||p._json?.email_verified==='true'))return d(null,false);let x=await pool.query('SELECT * FROM users WHERE google_id=$1 OR email=$2',[p.id,e]),u=x.rows[0];if(!u){let n=e.split('@')[0].replace(/[^\w.-]/g,'').slice(0,22)||'googleuser';for(let i=0;i<8;i++){try{x=await pool.query('INSERT INTO users(username,email,google_id) VALUES($1,$2,$3) RETURNING *',[i?n+crypto.randomInt(100,99999):n,e,p.id]);u=x.rows[0];break}catch(z){if(z.code!=='23505')throw z}}}else if(!u.google_id)await pool.query('UPDATE users SET google_id=$1 WHERE id=$2',[p.id,u.id]);d(null,u)}catch(e){d(e)}}));
+const auth=(q,s,n)=>q.isAuthenticated()?n():s.status(401).json({error:'Войдите в аккаунт'});
+app.get('/health',run(async(q,s)=>{await pool.query('SELECT 1');s.json({ok:true})}));
+app.get('/',(q,s)=>s.redirect(q.isAuthenticated()?'/app':'/login'));app.get(['/login','/register'],(q,s)=>s.sendFile(path.join(__dirname,'auth.html')));
+app.get('/app',(q,s)=>q.isAuthenticated()?s.sendFile(path.join(__dirname,'app.html')):s.redirect('/login'));
+app.post('/api/register',limit,run(async(q,s)=>{const u=String(q.body.username||'').trim(),p=String(q.body.password||''),e=String(q.body.email||'').trim().toLowerCase()||null;if(!/^[\w.-]{3,32}$/.test(u)||p.length<10||p.length>200)return s.status(400).json({error:'Логин 3–32 символа, пароль минимум 10'});try{const x=await pool.query('INSERT INTO users(username,email,password_hash) VALUES($1,$2,$3) RETURNING id,username,email,is_admin,is_developer',[u,e,await bcrypt.hash(p,12)]);q.login(x.rows[0],z=>z?s.status(500).json({error:'Ошибка входа'}):s.json({ok:true}))}catch(z){if(z.code==='23505')return s.status(409).json({error:'Логин или email уже занят'});throw z}}));
+app.post('/api/login',limit,run(async(q,s)=>{const v=String(q.body.username||''),p=String(q.body.password||''),x=await pool.query('SELECT * FROM users WHERE lower(username)=lower($1) OR lower(email)=lower($1)',[v]);if(!x.rows[0]?.password_hash||!await bcrypt.compare(p,x.rows[0].password_hash))return s.status(401).json({error:'Неверный логин или пароль'});q.login(x.rows[0],e=>e?s.status(500).json({error:'Ошибка входа'}):s.json({ok:true}))}));
+app.get('/api/me',auth,(q,s)=>s.json({user:q.user}));app.post('/api/logout',auth,(q,s)=>q.logout(()=>q.session.destroy(()=>s.json({ok:true}))));
+app.get('/auth/google',(q,s,n)=>process.env.GOOGLE_CLIENT_ID?passport.authenticate('google',{scope:['profile','email']})(q,s,n):s.redirect('/login?google=off'));app.get('/auth/google/callback',passport.authenticate('google',{failureRedirect:'/login'}),(q,s)=>s.redirect('/app'));
+app.get('/api/products',auth,run(async(q,s)=>s.json((await pool.query('SELECT id,name,exp_date,category FROM products WHERE user_id=$1 ORDER BY exp_date',[q.user.id])).rows)));
+app.post('/api/products',auth,run(async(q,s)=>{const {name,exp_date,category=''}=q.body;if(typeof name!=='string'||!name.trim()||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(exp_date)))return s.status(400).json({error:'Проверьте название и дату'});s.status(201).json((await pool.query('INSERT INTO products(user_id,name,exp_date,category) VALUES($1,$2,$3,$4) RETURNING id,name,exp_date,category',[q.user.id,name.trim(),exp_date,String(category).slice(0,80)])).rows[0])}));
+app.delete('/api/products/:id',auth,run(async(q,s)=>{await pool.query('DELETE FROM products WHERE id=$1 AND user_id=$2',[q.params.id,q.user.id]);s.json({ok:true})}));
+app.get('/setup-admin',(q,s)=>s.sendFile(path.join(__dirname,'setup-admin.html')));
+app.post('/api/setup-admin',limit,run(async(q,s)=>{const t=String(q.body.token||''),u=String(q.body.username||'moore'),p=String(q.body.password||''),want=process.env.BOOTSTRAP_TOKEN||'';if(!want||t.length!==want.length||!crypto.timingSafeEqual(Buffer.from(t),Buffer.from(want)))return s.status(403).json({error:'Неверный ключ'});if(!/^[\w.-]{3,32}$/.test(u)||p.length<12)return s.status(400).json({error:'Пароль должен быть не короче 12 символов'});const c=await pool.connect();try{await c.query('BEGIN');await c.query('LOCK TABLE users IN EXCLUSIVE MODE');if((await c.query('SELECT 1 FROM users WHERE is_admin=true')).rowCount){await c.query('ROLLBACK');return s.status(410).json({error:'Администратор уже создан'})}const x=await c.query('INSERT INTO users(username,password_hash,is_admin,is_developer) VALUES($1,$2,true,true) RETURNING *',[u,await bcrypt.hash(p,12)]);await c.query('COMMIT');q.login(x.rows[0],e=>e?s.status(500).json({error:'Аккаунт создан, войдите'}):s.json({ok:true}))}catch(e){await c.query('ROLLBACK');throw e}finally{c.release()}}));
+app.use((e,q,s,n)=>{console.error(e);s.status(500).json({error:'Внутренняя ошибка'})});init().then(()=>app.listen(PORT,()=>console.log('Expiry tracker ready on '+PORT))).catch(e=>{console.error(e);process.exit(1)});
