@@ -1,1 +1,43 @@
-<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Мои продукты</title><style>body{margin:0;background:#101827;color:#eef4ff;font:16px system-ui;padding:22px}main{max-width:850px;margin:auto}.panel{background:#1b293d;padding:20px;border-radius:14px;margin:18px 0}input,button{padding:12px;border-radius:8px;margin:5px;font:inherit}input{background:#101c2c;color:white;border:1px solid #52647d}button{background:#79b5ff;border:0;cursor:pointer}.row{display:flex;justify-content:space-between;border-bottom:1px solid #40516b;padding:12px 0;gap:12px}.muted{color:#a9b9ce}</style><main><header style="display:flex;justify-content:space-between;align-items:center"><div><h1>🥫 Сроки годности</h1><p id="who" class="muted"></p></div><button id="logout">Выйти</button></header><section class="panel"><h2>Добавить продукт</h2><form id="add"><input name="name" placeholder="Название" required maxlength="160"><input name="exp_date" type="date" required><input name="category" placeholder="Категория"><button>Добавить</button></form></section><section class="panel"><h2>Мои продукты</h2><div id="items">Загрузка…</div></section></main><script>const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));async function api(url,opt={}){let r=await fetch(url,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});if(r.status===401){location='/login';throw Error('Войдите')}let j=await r.json();if(!r.ok)throw Error(j.error||'Ошибка');return j}async function load(){let m=await api('/api/me');who.textContent='Пользователь: '+m.user.username+(m.user.is_admin?' · администратор':'');let a=await api('/api/products');items.innerHTML=a.length?a.map(x=>'<div class="row"><span><b>'+esc(x.name)+'</b><br><span class="muted">'+esc(x.category||'Без категории')+' · до '+String(x.exp_date).slice(0,10)+'</span></span><button onclick="del(\''+x.id+'\')">Удалить</button></div>').join(''):'Список пока пуст' }async function del(id){await api('/api/products/'+id,{method:'DELETE'});load()}add.onsubmit=async e=>{e.preventDefault();try{await api('/api/products',{method:'POST',body:JSON.stringify(Object.fromEntries(new FormData(add)))});add.reset();load()}catch(x){alert(x.message)}};logout.onclick=async()=>{await api('/api/logout',{method:'POST'});location='/login'};load().catch(e=>alert(e.message))</script></html>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827"><title>Сроки годности</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101827;color:#eef4ff;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:765px;margin:0 auto;padding:8px 0 48px}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:28px}
+h1{font-size:28px;line-height:1.25;margin:0;font-weight:750}header p{margin:16px 0 0;color:#a9b9ce}
+button,input{font:inherit}button{background:#79b5ff;color:#081525;border:0;border-radius:8px;padding:11px 14px;cursor:pointer}
+button:hover{background:#9ac8ff}.panel{background:#1b293d;padding:20px 18px;border-radius:14px;margin:18px 0 16px}
+h2{font-size:22px;margin:14px 0 16px;font-weight:750}
+form{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+input{height:45px;min-width:0;background:#101c2c;color:#eef4ff;border:1px solid #52647d;border-radius:8px;padding:10px 11px;flex:1 1 150px}
+input::placeholder{color:#8392a7}input[type=date]{color-scheme:dark}
+#items{color:#eef4ff}.product{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #40516b}
+.product:last-child{border-bottom:0}.muted{color:#a9b9ce}.product small{display:block;color:#a9b9ce;margin-top:3px}
+.product button{padding:7px 10px;background:#34465f;color:#eef4ff}.product button:hover{background:#485e7c}
+.empty{padding:0 0 0;color:#eef4ff}
+@media(max-width:800px){main{margin:0 16px}}@media(max-width:520px){header{align-items:flex-start}h1{font-size:24px}.panel{padding:16px}form{display:grid;grid-template-columns:1fr}form input,form button{width:100%}}
+</style>
+</head>
+<body>
+<main>
+<header><div><h1>🥫 Сроки годности</h1><p id="who" class="muted">Пользователь</p></div><button id="logout" type="button">Выйти</button></header>
+<section class="panel"><h2>Добавить продукт</h2>
+<form id="add"><input name="name" placeholder="Название" required maxlength="100" aria-label="Название"><input name="exp_date" type="date" required aria-label="Годен до"><input name="category" placeholder="Категория" maxlength="80" aria-label="Категория"><button type="submit">Добавить</button></form>
+<p id="error" class="muted" role="alert" hidden></p>
+</section>
+<section class="panel"><h2>Мои продукты</h2><div id="items">Загрузка…</div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});if(r.status===401){location='/login';throw Error('Войдите в аккаунт')}let j;try{j=await r.json()}catch{j={}}if(!r.ok)throw Error(j.error||'Ошибка запроса');return j}
+async function load(){const me=await api('/api/me');$('who').textContent='Пользователь: '+me.user.username+(me.user.is_admin?' · администратор':'');const rows=await api('/api/products');$('items').innerHTML=rows.length?rows.map(x=>{const date=String(x.exp_date).slice(0,10);const diff=Math.ceil((new Date(date+'T00:00:00')-new Date(new Date().toDateString()))/86400000);const status=diff<0?'Просрочен':diff<=7?'Скоро истечёт':'В порядке';return '<div class="product"><span><b>'+esc(x.name)+'</b><small>'+esc(x.category||'Без категории')+' · до '+esc(date)+' · '+status+'</small></span><button type="button" data-delete="'+esc(x.id)+'">Удалить</button></div>'}).join(''):'<div class="empty">Список пока пуст</div>'}
+$('add').addEventListener('submit',async e=>{e.preventDefault();$('error').hidden=true;const data=Object.fromEntries(new FormData(e.currentTarget));try{await api('/api/products',{method:'POST',body:JSON.stringify(data)});e.currentTarget.reset();await load()}catch(err){$('error').textContent=err.message;$('error').hidden=false}});
+$('items').addEventListener('click',async e=>{const b=e.target.closest('[data-delete]');if(!b)return;try{await api('/api/products/'+encodeURIComponent(b.dataset.delete),{method:'DELETE'});await load()}catch(err){alert(err.message)}});
+$('logout').addEventListener('click',async()=>{try{await api('/api/logout',{method:'POST'});location='/login'}catch(err){alert(err.message)}});
+load().catch(err=>{if(!/Войдите/.test(err.message)){ $('items').textContent=err.message }});
+</script>
+</body></html>
