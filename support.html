@@ -16,7 +16,8 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-ser
   root.style.setProperty('--primary',/^#[0-9a-f]{6}$/i.test(theme.accent||'')?theme.accent:'#635bff');
   const bg=theme.backgroundImage&&/^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(theme.backgroundImage)?'linear-gradient(#0f172a22,#0f172a22),url("'+theme.backgroundImage+'")':(backgrounds[theme.background]||backgrounds.aurora);
   root.style.setProperty('--page-background',bg);root.style.setProperty('--account-page-bg',bg);
-  if(document.body.classList.contains('account-themed'))document.body.style.backgroundImage=bg;
+  document.body.classList.add('account-themed');
+  document.body.style.backgroundImage=bg;
   document.body.classList.toggle('theme-animated',!!theme.animated&&!theme.backgroundImage&&theme.background!=='minimal');
   btn.textContent=theme.mode==='dark'?'☀️':'🌙';btn.title=theme.mode==='dark'?'Переключить на светлую тему':'Переключить на тёмную тему';btn.setAttribute('aria-label',btn.title);
  }
