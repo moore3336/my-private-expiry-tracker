@@ -7,7 +7,7 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-ser
 let mode=location.pathname==='/register'?'register':'login';
 const formRoot=document.getElementById('form'),message=document.getElementById('msg');
 function draw(){
-formRoot.innerHTML='<form id="accountForm" novalidate><input name="username" placeholder="'+(mode==='register'?'Логин (3–32 символа)':'Логин или email')+'" required minlength="3" maxlength="32" autocomplete="username">'+(mode==='register'?'<input name="email" type="email" placeholder="Email (необязательно)" autocomplete="email">':'')+'<input name="password" type="password" placeholder="Пароль (минимум 10 символов)" minlength="'+(mode==='register'?10:1)+'" maxlength="200" required autocomplete="'+(mode==='register'?'new-password':'current-password')+'"><button type="submit">'+(mode==='register'?'Создать аккаунт':'Войти')+'</button></form>';
+formRoot.innerHTML='<form id="accountForm" novalidate><input name="username" placeholder="'+(mode==='register'?'Логин (3–32 символа)':'Логин или email')+'" required minlength="3" maxlength="'+(mode==='register'?32:254)+'" autocomplete="username">'+(mode==='register'?'<input name="email" type="email" placeholder="Email (необязательно)" autocomplete="email">':'')+'<input name="password" type="password" placeholder="Пароль (минимум 10 символов)" minlength="'+(mode==='register'?10:1)+'" maxlength="200" required autocomplete="'+(mode==='register'?'new-password':'current-password')+'"><button type="submit">'+(mode==='register'?'Создать аккаунт':'Войти')+'</button></form>';
 const accountForm=document.getElementById('accountForm');
 accountForm.onsubmit=async event=>{
 event.preventDefault();message.textContent='';
