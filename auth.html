@@ -4,11 +4,23 @@
 
 /* Unified modern visual language */
 body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif!important;letter-spacing:-.01em;background:radial-gradient(ellipse at 5% 0%,#dbeafe 0,transparent 35%),radial-gradient(ellipse at 95% 5%,#f3e8ff 0,transparent 30%),#f3f6fb!important}body:has(.global-theme){} .card,.p{border-radius:22px!important;box-shadow:0 18px 48px #17255412!important}button,.btn{border-radius:13px!important;font-weight:700!important;transition:transform .16s ease,box-shadow .16s ease!important}button:hover,.btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px #635bff20}input,textarea,select{border-radius:13px!important}h1,h2{letter-spacing:-.035em} :root[data-theme="dark"] body{background:radial-gradient(ellipse at 5% 0%,#1e2c52 0,transparent 35%),radial-gradient(ellipse at 95% 5%,#30224a 0,transparent 30%),#0b1220!important;color:#e5edf8!important} @media(max-width:600px){.wrap{padding-top:62px!important}.p{padding:22px!important}}
+/* Theme-aware authentication controls */
+:root{--auth-bg:#f3f6fb;--auth-card:#fff;--auth-text:#172033;--auth-muted:#52647d;--auth-tab:#e8edf5;--auth-tab-hover:#dce4ef;--auth-button:#79b5ff;--auth-button-text:#0b1b2d;--auth-border:#cbd5e1}
+:root[data-theme="dark"]{--auth-bg:#0b1220;--auth-card:#131d2e;--auth-text:#e5edf8;--auth-muted:#a9b8cc;--auth-tab:#182438;--auth-tab-hover:#26364e;--auth-button:#365f91;--auth-button-text:#fff;--auth-border:#35465f}
+body{background:var(--auth-bg)!important;color:var(--auth-text)!important}
+.p{background:var(--auth-card)!important;color:var(--auth-text)!important}
+.tabs{background:var(--auth-tab)!important}
+.tabs button{background:var(--auth-tab)!important;color:var(--auth-muted)!important;border:1px solid var(--auth-border)!important;box-shadow:none!important}
+.tabs button:hover{background:var(--auth-tab-hover)!important;color:var(--auth-text)!important}
+.tabs button[aria-pressed="true"]{background:var(--auth-button)!important;color:var(--auth-button-text)!important;border-color:transparent!important;box-shadow:0 2px 8px #17255418!important}
+.p form button{background:var(--auth-button)!important;color:var(--auth-button-text)!important;border:0!important}
+.p form button:disabled{opacity:.7;cursor:wait}
+.global-theme{background:var(--auth-card)!important;color:var(--auth-text)!important;border-color:var(--auth-border)!important}
 </style><button id="globalTheme" class="global-theme" type="button">🌙 Тёмная тема</button><main class="p"><h1>🥫 Сроки годности</h1><p>Создайте аккаунт или войдите. Ваш список продуктов будет личным.</p><p style="font-size:13px;opacity:.75;text-align:center">★ Создатель сайта — moore</p><div class="tabs"><button onclick="mode='login';draw()">Войти</button><button onclick="mode='register';draw()">Регистрация</button></div><div id="form"></div><p id="msg" class="msg"></p></main><script>
 let mode=location.pathname==='/register'?'register':'login';
 const formRoot=document.getElementById('form'),message=document.getElementById('msg');
 function draw(){
-document.querySelectorAll('.tabs button').forEach(button=>{button.style.removeProperty('background');button.style.removeProperty('color');button.style.removeProperty('box-shadow');});
+document.querySelectorAll('.tabs button').forEach((button,index)=>button.setAttribute('aria-pressed',String((index===0&&mode==='login')||(index===1&&mode==='register'))));
 formRoot.innerHTML='<form id="accountForm" novalidate><input name="username" placeholder="'+(mode==='register'?'Логин (3–32 символа)':'Логин или email')+'" required minlength="3" maxlength="'+(mode==='register'?32:254)+'" autocomplete="username">'+(mode==='register'?'<input name="email" type="email" placeholder="Email (необязательно)" autocomplete="email">':'')+'<input name="password" type="password" placeholder="Пароль (минимум 10 символов)" minlength="'+(mode==='register'?10:1)+'" maxlength="200" required autocomplete="'+(mode==='register'?'new-password':'current-password')+'"><button type="submit">'+(mode==='register'?'Создать аккаунт':'Войти')+'</button></form>';
 const accountForm=document.getElementById('accountForm');
 accountForm.onsubmit=async event=>{
@@ -31,4 +43,4 @@ finally{submit.disabled=false;submit.textContent=mode==='register'?'Создат
 };
 }
 draw();
-</script><script>(()=>{const root=document.documentElement,key='expiry-theme';let t=localStorage.getItem(key)||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');root.dataset.theme=t;const b=document.getElementById('globalTheme');const paint=()=>{b.textContent=root.dataset.theme==='dark'?'☀️ Светлая тема':'🌙 Тёмная тема'};paint();b.addEventListener('click',()=>{root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';localStorage.setItem(key,root.dataset.theme);paint()})})();</script></html>
+</script><script>(()=>{const root=document.documentElement,key='expiry-theme',button=document.getElementById('globalTheme');let saved=null;try{saved=localStorage.getItem(key)}catch{}const initial=saved==='dark'||saved==='light'?saved:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');function applyTheme(theme){root.dataset.theme=theme;button.textContent=theme==='dark'?'☀️ Светлая тема':'🌙 Тёмная тема';button.setAttribute('aria-label',theme==='dark'?'Переключить на светлую тему':'Переключить на тёмную тему')}applyTheme(initial);button.addEventListener('click',()=>{const next=root.dataset.theme==='dark'?'light':'dark';applyTheme(next);try{localStorage.setItem(key,next)}catch{}})})();</script></html>
