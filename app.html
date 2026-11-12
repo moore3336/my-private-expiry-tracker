@@ -54,7 +54,7 @@ body{background:var(--page-background,var(--bg))!important;background-image:var(
 <script>(()=>{'use strict';const $=id=>document.getElementById(id);let items=[],catalog=[],gostDocs=[],editing=null;const soonDays=7;
 const api=async(url,opt={})=>{const r=await fetch(url,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});if(r.status===401){location='/login';throw Error('Войдите в аккаунт снова')}let j={};try{j=await r.json()}catch{}if(!r.ok)throw Error(j.error||'Ошибка запроса');return j};
 const dateOK=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'')&&!isNaN(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
-const left=s=>Math.round((Date.parse(s+'T00:00:00Z')-Date.now()+new Date().getTimezoneOffset()*60000)/86400000);
+const left=s=>{const [y,m,d]=String(s).split('-').map(Number),target=Date.UTC(y,m-1,d),now=new Date(),today=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());return Math.round((target-today)/86400000)};
 const status=s=>{let n=left(s);return n<0?'expired':n<=soonDays?'soon':'valid'};
 const fmt=s=>new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'long',year:'numeric'}).format(new Date(s+'T00:00:00'));
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
