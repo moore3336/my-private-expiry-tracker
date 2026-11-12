@@ -1,0 +1,19 @@
+{
+  "name": "private-expiry-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-user password-protected expiry tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "make-password-hash": "node scripts/make-password-hash.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-session": "^2.1.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0"
+  }
+}
